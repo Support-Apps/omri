@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>⚽ עומרי הכוכב - משחק כדורגל</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Rubik:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'Heebo',sans-serif;background:#1a1a2e;display:flex;flex-direction:column;touch-action:none}
+
+        .header{display:flex;justify-content:space-between;align-items:center;width:100%;padding:8px 16px;background:rgba(0,0,0,.3)}
+        .title{font-family:'Rubik',sans-serif;font-size:clamp(1rem,4vw,1.5rem);color:white}
+        .score-board{display:flex;gap:10px;font-size:.9rem;font-weight:700}
+        .score{background:rgba(255,255,255,.1);padding:6px 12px;border-radius:10px;color:white}
+        .score span{color:#FFD700;font-size:1.2rem}
+
+        .field{flex:1;background:#2d8a4e;position:relative;border:3px solid white;overflow:hidden}
+        .field::before{content:'';position:absolute;top:50%;left:10%;right:10%;height:2px;background:rgba(255,255,255,.3)}
+        .center-circle{position:absolute;top:50%;left:50%;width:60px;height:60px;border:2px solid rgba(255,255,255,.2);border-radius:50%;transform:translate(-50%,-50%)}
+
+        /* GOAL at bottom */
+        .goal{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:45%;height:13%;border:4px solid white;border-bottom:none;background:rgba(255,255,255,.08);z-index:5}
+        .goal-net{position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(90deg,transparent,transparent 8px,rgba(255,255,255,.15) 8px,rgba(255,255,255,.15) 10px),repeating-linear-gradient(0deg,transparent,transparent 8px,rgba(255,255,255,.15) 8px,rgba(255,255,255,.15) 10px)}
+        .goal-post-l,.goal-post-r{position:absolute;top:0;width:5px;height:100%;background:white;border-radius:2px;z-index:6}
+        .goal-post-l{left:-5px}.goal-post-r{right:-5px}
+        .goal-bar{position:absolute;bottom:-5px;left:-5px;right:-5px;height:5px;background:white;border-radius:2px;z-index:6}
+
+        /* GOALKEEPER at bottom near goal - back to us */
+        .goalkeeper{position:absolute;bottom:14%;left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:column;align-items:center;transition:left .4s ease}
+        .gk-head{width:22px;height:22px;background:#8B6914;border-radius:50%;margin-bottom:-3px}
+        .gk-body{width:24px;height:14px;background:#ff8c00;border-radius:5px 5px 0 0;position:relative}
+        .gk-arms{display:flex;justify-content:space-between;width:48px;position:absolute;top:0;left:-12px}
+        .gk-arm{width:6px;height:16px;background:linear-gradient(to bottom,#ff8c00 40%,#4CAF50 40%);border-radius:3px}
+        .gk-arm.l{transform:rotate(-25deg)}.gk-arm.r{transform:rotate(25deg)}
+        .gk-shorts{width:24px;height:8px;background:#333;border-radius:0 0 3px 3px}
+        .gk-legs{display:flex;gap:3px;margin-top:1px}
+        .gk-leg{width:5px;height:10px;background:linear-gradient(to bottom,#fddcb5 50%,#222 50%);border-radius:0 0 2px 2px}
+
+        /* PLAYER at top - facing down toward goal */
+        .player{position:absolute;top:12%;left:50%;transform:translateX(-50%);z-index:20;cursor:pointer;user-select:none;display:flex;flex-direction:column;align-items:center}
+        .player-head{font-size:30px;line-height:1;margin-bottom:-3px}
+        .player-body{width:26px;height:15px;background:#2d7a4e;border-radius:6px 6px 0 0;position:relative;display:flex;align-items:center;justify-content:center}
+        .player-body::after{content:'9';font-size:8px;color:white;font-weight:bold}
+        .player-arms{display:flex;justify-content:space-between;width:36px;position:absolute;top:0;left:-5px}
+        .player-arm{width:5px;height:12px;background:linear-gradient(to bottom,#2d7a4e 50%,#fddcb5 50%);border-radius:3px;transform-origin:top center}
+        .player-arm.l{transform:rotate(-12deg)}.player-arm.r{transform:rotate(12deg)}
+        .player-shorts{width:26px;height:9px;background:#1a3a2e;border-radius:0 0 3px 3px}
+        .player-legs{display:flex;gap:3px;margin-top:1px}
+        .player-leg{width:5px;height:11px;background:linear-gradient(to bottom,#fddcb5 50%,#2d7a4e 50%);border-radius:0 0 2px 2px}
+        .player-name{font-size:10px;color:white;font-weight:bold;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:8px;margin-top:3px;white-space:nowrap}
+
+        .ball{position:absolute;font-size:28px;z-index:15;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));cursor:pointer}
+        .ball:hover{transform:scale(1.15)}
+        .ball.kicked{transition:left .5s ease-out,top .5s ease-out;cursor:default}
+
+        /* Power bar */
+        .power-bar{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:50%;max-width:250px;z-index:30;opacity:0;transition:opacity .3s}
+        .power-bar.active{opacity:1}
+        .power-bg{width:100%;height:18px;background:rgba(0,0,0,.6);border-radius:9px;overflow:hidden;border:2px solid rgba(255,255,255,.3)}
+        .power-fill{height:100%;width:0%;background:linear-gradient(90deg,#4CAF50,#FFD700,#f44336);border-radius:7px;transition:width .05s}
+        .power-text{color:white;text-align:center;font-size:11px;margin-top:3px;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+
+        .message{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) scale(0);font-family:'Rubik',sans-serif;font-size:clamp(2rem,8vw,3.5rem);font-weight:900;z-index:50;transition:transform .3s;text-shadow:0 4px 15px rgba(0,0,0,.5)}
+        .message.show{transform:translate(-50%,-50%) scale(1)}
+        .goal-message{color:#FFD700}.save-message{color:#ff6b6b}.miss-message{color:#aaa}
+        .confetti{position:absolute;width:8px;height:8px;border-radius:2px;z-index:100;pointer-events:none}
+        @keyframes confettiFall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(300px) rotate(720deg);opacity:0}}
+
+        .hint{position:absolute;top:42%;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.5);font-size:clamp(12px,3vw,16px);text-align:center;pointer-events:none;z-index:25}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">⚽ עומרי הכוכב</div>
+        <div class="score-board">
+            <div class="score">⚽ <span id="goals">0</span></div>
+            <div class="score">🦶 <span id="kicks">0</span></div>
+        </div>
+    </div>
+    <div class="field" id="field">
+        <div class="center-circle"></div>
+        <div class="goal" id="goal">
+            <div class="goal-net"></div>
+            <div class="goal-post-l"></div>
+            <div class="goal-post-r"></div>
+            <div class="goal-bar"></div>
+        </div>
+        <div class="goalkeeper" id="goalkeeper">
+            <div class="gk-head"></div>
+            <div class="gk-body">
+                <div class="gk-arms"><div class="gk-arm l"></div><div class="gk-arm r"></div></div>
+            </div>
+            <div class="gk-shorts"></div>
+            <div class="gk-legs"><div class="gk-leg"></div><div class="gk-leg"></div></div>
+        </div>
+        <div class="player" id="player">
+            <div class="player-head">👦🏻</div>
+            <div class="player-body">
+                <div class="player-arms"><div class="player-arm l"></div><div class="player-arm r"></div></div>
+            </div>
+            <div class="player-shorts"></div>
+            <div class="player-legs"><div class="player-leg"></div><div class="player-leg"></div></div>
+            <div class="player-name">⭐ עומרי 10 ⭐</div>
+        </div>
+        <div class="ball" id="ball">⚽</div>
+        <div class="power-bar" id="powerBar">
+            <div class="power-bg"><div class="power-fill" id="powerFill"></div></div>
+            <div class="power-text">לחץ על המגרש והחזק... שחרר לבעוט!</div>
+        </div>
+        <div class="hint" id="hint">👆 לחץ על הכדור והחזק, ואז שחרר לבעוט!</div>
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        var field=document.getElementById('field'),ball=document.getElementById('ball'),
+            goalkeeper=document.getElementById('goalkeeper'),player=document.getElementById('player'),
+            message=document.getElementById('message'),powerBar=document.getElementById('powerBar'),
+            powerFill=document.getElementById('powerFill'),hint=document.getElementById('hint');
+
+        var goals=0,kicks=0,isCharging=false,power=0,powerInterval=null,ballInPlay=false;
+        var playerBob=null;
+
+        function initPositions(){
+            var r=field.getBoundingClientRect();
+            ball.style.left=(r.width/2-14)+'px';
+            ball.style.top=(r.height*0.28)+'px';
+            player.style.left=(r.width/2-20)+'px';
+            startPlayerIdle();
+            moveGoalkeeper();
+        }
+
+        // Player idle movement - sways left and right
+        function startPlayerIdle(){
+            var r=field.getBoundingClientRect();
+            var baseX=r.width/2-20,dir=1;
+            if(playerBob)clearInterval(playerBob);
+            playerBob=setInterval(function(){
+                if(ballInPlay)return;
+                baseX+=dir*0.5;
+                if(baseX>r.width/2+15)dir=-1;
+                if(baseX<r.width/2-55)dir=1;
+                player.style.left=baseX+'px';
+                // Keep ball near player
+                ball.style.left=(baseX+6)+'px';
+            },30);
+        }
+
+        // Goalkeeper moves actively across the goal
+        var gkX=0,gkTargetX=0,gkMoving=null;
+        function moveGoalkeeper(){
+            var r=field.getBoundingClientRect();
+            var goalEl=document.getElementById('goal');
+            var gr=goalEl.getBoundingClientRect();
+            var minX=gr.left-r.left+5;
+            var maxX=gr.right-r.left-35;
+            gkX=minX+(maxX-minX)/2;
+            goalkeeper.style.left=gkX+'px';
+            goalkeeper.style.transform='none';
+            
+            // Continuous smooth movement
+            if(gkMoving)clearInterval(gkMoving);
+            gkTargetX=minX+Math.random()*(maxX-minX);
+            gkMoving=setInterval(function(){
+                var r2=field.getBoundingClientRect();
+                var gr2=goalEl.getBoundingClientRect();
+                var mn=gr2.left-r2.left+5;
+                var mx=gr2.right-r2.left-35;
+                // Move toward target
+                var diff=gkTargetX-gkX;
+                gkX+=diff*0.03;
+                goalkeeper.style.left=gkX+'px';
+                // Pick new target when close
+                if(Math.abs(diff)<5){
+                    gkTargetX=mn+Math.random()*(mx-mn);
+                }
+            },16);
+        }
+
+        // Click on BALL to start charging
+        ball.addEventListener('pointerdown',function(e){
+            if(ballInPlay)return;
+            e.preventDefault();e.stopPropagation();
+            isCharging=true;power=0;
+            powerBar.classList.add('active');
+            hint.style.display='none';
+            powerInterval=setInterval(function(){
+                power=Math.min(100,power+2);
+                powerFill.style.width=power+'%';
+            },30);
+        });
+
+        // Release anywhere to kick
+        document.addEventListener('pointerup',function(e){
+            if(!isCharging)return;
+            isCharging=false;clearInterval(powerInterval);
+            powerBar.classList.remove('active');
+            if(power<5){powerFill.style.width='0%';return}
+            kickBall();
+        });
+
+        function kickBall(){
+            ballInPlay=true;kicks++;
+            document.getElementById('kicks').textContent=kicks;
+            ball.classList.add('kicked');
+            var fr=field.getBoundingClientRect();
+            var goalEl=document.getElementById('goal');
+            var gr=goalEl.getBoundingClientRect();
+            var goalCenterX=gr.left-fr.left+gr.width/2;
+            var goalL=gr.left-fr.left+12;
+            var goalR=gr.right-fr.left-12;
+            var goalY=gr.top-fr.top+gr.height*0.5;
+            // Ball always goes into the goal area - spread only within goal width
+            var spread=(100-power)*0.4;
+            var finalX=goalCenterX+(Math.random()-.5)*spread*1.5;
+            // Clamp inside goal posts
+            finalX=Math.max(goalL,Math.min(goalR,finalX));
+            var finalY=goalY+(Math.random()-.5)*gr.height*0.4;
+            finalY=Math.max(gr.top-fr.top+5,Math.min(gr.bottom-fr.top-5,finalY));
+            ball.style.left=finalX+'px';ball.style.top=finalY+'px';
+            setTimeout(function(){checkGoal(finalX,finalY)},550);
+        }
+
+        function checkGoal(bx,by){
+            var fr=field.getBoundingClientRect();
+            var gkRect=goalkeeper.getBoundingClientRect();
+            var gkCX=gkRect.left-fr.left+gkRect.width/2;
+            var distToGk=Math.abs(bx-gkCX);
+            var catchChance=0;
+            if(distToGk<25)catchChance=0.85;
+            else if(distToGk<45)catchChance=0.55;
+            else if(distToGk<65)catchChance=0.3;
+            else catchChance=0.1;
+            if(power<50)catchChance+=0.2;
+            catchChance=Math.min(0.9,catchChance);
+            if(Math.random()<catchChance){
+                // SAVE - goalkeeper dives to ball
+                goalkeeper.style.transition='left 0.25s ease';
+                goalkeeper.style.left=(bx-12)+'px';
+                // Ball bounces back toward player after 300ms
+                setTimeout(function(){
+                    ball.style.transition='left 0.4s ease-out, top 0.4s ease-out';
+                    var bounceX=fr.width/2+(Math.random()-.5)*80;
+                    var bounceY=fr.height*0.42+Math.random()*30;
+                    ball.style.left=bounceX+'px';
+                    ball.style.top=bounceY+'px';
+                    setTimeout(function(){ball.style.transition='none'},450);
+                },280);
+                showMessage('הציל! 🧤','save-message');
+            }else{
+                goals++;document.getElementById('goals').textContent=goals;
+                showMessage('גוווול! ⚽🎉','goal-message');createConfetti();
+            }
+            setTimeout(function(){goalkeeper.style.transition='left 0.4s ease';resetBall()},2200);
+        }
+
+        function showMessage(text,cls){
+            message.textContent=text;message.className='message '+cls+' show';
+            setTimeout(function(){message.classList.remove('show')},1400);
+        }
+
+        function createConfetti(){
+            var colors=['#ff0000','#00ff00','#0000ff','#ffff00','#ff00ff','#00ffff','#FFD700'];
+            for(var i=0;i<50;i++){
+                var c=document.createElement('div');c.className='confetti';
+                c.style.left=Math.random()*field.offsetWidth+'px';c.style.top='0px';
+                c.style.background=colors[Math.floor(Math.random()*colors.length)];
+                c.style.animation='confettiFall '+(1+Math.random())+'s ease forwards';
+                c.style.animationDelay=Math.random()*0.5+'s';
+                field.appendChild(c);setTimeout(function(el){el.remove()},2000,c);
+            }
+        }
+
+        function resetBall(){
+            ball.classList.remove('kicked');ballInPlay=false;power=0;
+            powerFill.style.width='0%';
+            var fr=field.getBoundingClientRect();
+            ball.style.left=(fr.width/2-14)+'px';
+            ball.style.top=(fr.height*0.28)+'px';
+            player.style.left=(fr.width/2-20)+'px';
+        }
+
+        window.addEventListener('load',initPositions);
+        window.addEventListener('resize',initPositions);
+    </script>
+</body>
+</html>
